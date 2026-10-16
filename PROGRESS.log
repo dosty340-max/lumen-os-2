@@ -2,3 +2,5 @@
 11:26  wrote ARCHITECTURE.md, Docker toolchain, minimal kernel config (6.12.113)
 11:26  M1: kernel + PID1 + raw DRM page-flip boots to a solid orange screen in 0.03 s
 11:29  M2: AA software rasteriser (SDF rounded rects, lines, arcs), stb_truetype glyph cache, evdev touch+keyboard, touch circle, 60 fps paced flips
+11:35  M3: Slab shell — boot slam animation, lock bands with push-up unlock + slot-roll numerals, home with accordion drawers, tile→app expand, home gesture, control center
+11:37  M4: status line (network/battery), control center slabs (toggles, brightness/volume slab sliders), raw-ALSA virtio-sound mixer thread, boot chime test tone verified in capture, A/B-slot key/value store on raw disk

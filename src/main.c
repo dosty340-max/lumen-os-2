@@ -1,5 +1,5 @@
 // PID 1 + the UI main loop.
-#include "lumen.h"
+#include "ui.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/mount.h>
@@ -11,6 +11,7 @@
 #define EXIT_REBOOT 42
 
 void request_reboot(void) {
+    store_flush();
     sync();
     LOG("ui: reboot requested");
     exit(EXIT_REBOOT);
@@ -48,6 +49,9 @@ int main(void) {
     if (!scr) { LOG("ui: no display"); sleep(5); return 1; }
     font_init();
     input_init();
+    store_init();
+    settings_load();
+    audio_init();
     shell_init();
 
     double last = now(), stat_t = last, worst = 0, flipw = 0;

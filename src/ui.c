@@ -4,7 +4,7 @@
 #include "ui.h"
 
 Theme TH;
-Settings SET = { .accent = 0, .dark = 1, .bright = 100, .vol = 70, .textsize = 1 };
+Settings SET = { .accent = 0, .dark = 1, .bright = 100, .vol = 70, .textsize = 1, .wifi = 1 };
 
 void theme_apply(void) {
     if (SET.dark) TH = (Theme){ C_INK, C_PAPER, C_MUTED, 0x26F3F0E8u, C_PAPER };

@@ -13,6 +13,7 @@ void theme_apply(void);
 extern const uint32_t ACCENTS[NACCENT][3];
 extern const char *ACCENT_NAMES[NACCENT];
 void settings_save(void);
+void settings_load(void);
 
 // ---- springs -------------------------------------------------------------------------
 typedef struct { float x, v, t; } Spring;   // position, velocity, target
@@ -72,6 +73,7 @@ typedef struct App {
 extern App app_video, app_web, app_photos, app_notes, app_clock, app_calc, app_game, app_settings;
 void shell_launch(App *a, const char *arg);   // open an app (e.g. Web with a query)
 void shell_go_home(void);
+const char *shell_launch_arg(void);
 void notify(const char *sender, const char *text);
 extern float shell_app_alpha;                 // app content fade (for apps that care)
 
