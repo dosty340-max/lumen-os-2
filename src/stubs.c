@@ -12,4 +12,3 @@ static void stub_draw(Canvas *c, float dt, const char *name, uint32_t col) {
 }
 #define STUB(v, n, ic, col) static void v##_draw(Canvas *c, float dt) { stub_draw(c, dt, n, col); } App v = { n, ic, 0, v##_draw, 0, 0, 0 };
 STUB(app_video, "Video", IC_VIDEO, C_ORANGE)
-STUB(app_web, "Web", IC_WEB, C_ORANGE)

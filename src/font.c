@@ -62,8 +62,13 @@ static Glyph *glyph(int f, float px, int cp) {
     memset(g, 0, sizeof *g);
     float scale = stbtt_ScaleForPixelHeight(&fi[f], sz / 4.0f);
     int gi = stbtt_FindGlyphIndex(&fi[f], cp);
-    if (!gi && cp > 32) {   // map common typographic chars the font lacks
-        int alt = cp == 0x2019 || cp == 0x2018 ? '\'' : cp == 0x201C || cp == 0x201D ? '"' : cp == 0xA0 ? ' ' : '?';
+    if (!gi && cp > 32) {   // map chars the font lacks to close relatives (IPA, quotes); else blank
+        static const int MAP[][2] = { { 0x2019, '\'' }, { 0x2018, '\'' }, { 0x201C, '"' }, { 0x201D, '"' }, { 0xA0, ' ' },
+            { 0x2C8, '\'' }, { 0x2CC, ',' }, { 0x26A, 'i' }, { 0x28A, 'u' }, { 0x259, 'e' }, { 0x25B, 'e' }, { 0x254, 'o' },
+            { 0x251, 'a' }, { 0x28C, 'a' }, { 0x283, 's' }, { 0x292, 'z' }, { 0x14B, 'n' }, { 0x2D0, ':' }, { 0x3B8, 'o' },
+            { 0x2212, '-' }, { 0x2010, '-' }, { 0x2011, '-' }, { 0x2009, ' ' }, { 0x202F, ' ' }, { 0x2002, ' ' }, { 0x2003, ' ' } };
+        int alt = ' ';
+        for (size_t k = 0; k < sizeof MAP / sizeof MAP[0]; k++) if (MAP[k][0] == cp) { alt = MAP[k][1]; break; }
         gi = stbtt_FindGlyphIndex(&fi[f], alt);
     }
     int adv, lsb;
