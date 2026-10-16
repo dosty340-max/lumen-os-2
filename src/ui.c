@@ -62,13 +62,13 @@ bool pressed(int id) { return id && press_id == id; }
 // ---- gestures -------------------------------------------------------------------
 int gest(Gest *g, InputEv *e) {
     double t = now();
-    if (e->type == EV_DOWN) {
+    if (e->type == T_DOWN) {
         *g = (Gest){ .x0 = e->x, .y0 = e->y, .x = e->x, .y = e->y, .t = t, .down = 1 };
         press_id = hit_at(e->x, e->y);
         return G_DOWN;
     }
     if (!g->down) return G_NONE;
-    if (e->type == EV_MOVE) {
+    if (e->type == T_MOVE) {
         float dt = (float)(t - g->t);
         float dx = e->x - g->x, dy = e->y - g->y;
         if (dt > 0.0005f) {   // low-pass velocity
@@ -86,7 +86,7 @@ int gest(Gest *g, InputEv *e) {
         }
         return g->drag ? G_DRAG : G_NONE;
     }
-    if (e->type == EV_UP) {
+    if (e->type == T_UP) {
         g->down = 0;
         press_id = 0;
         if (t - g->t > 0.08) { g->vx = 0; g->vy = 0; }   // finger rested before lifting

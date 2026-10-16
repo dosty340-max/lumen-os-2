@@ -50,8 +50,9 @@ int main(void) {
     input_init();
     shell_init();
 
-    double last = now(), stat_t = last, worst = 0;
+    double last = now(), stat_t = last, worst = 0, flipw = 0;
     int frames = 0;
+    double next = now();
     const double period = 1.0 / 60;
     for (;;) {
         InputEv ev[64];
@@ -63,17 +64,18 @@ int main(void) {
         shell_frame(scr, dt);
         double work = now() - t;
         if (work > worst) worst = work;
+        double tf = now();
         scr = drm_flip();
+        flipw += now() - tf;
         frames++;
         if (t - stat_t >= 10) {   // frame-time log for the perf report
-            LOG("perf: %.1f fps, worst frame work %.1f ms", frames / (t - stat_t), worst * 1000);
-            frames = 0; worst = 0; stat_t = t;
+            LOG("perf: %.1f fps, worst frame work %.1f ms, avg flip wait %.1f ms", frames / (t - stat_t), worst * 1000, flipw * 1000 / frames);
+            frames = 0; worst = 0; flipw = 0; stat_t = t;
         }
-        // pace to 60 Hz even if the flip event came back early
-        double next = t + period, rem = next - now();
-        if (rem > 0.0005) {
-            struct timespec ts = { 0, (long)(rem * 1e9) };
-            nanosleep(&ts, 0);
-        }
+        // pace to 60 Hz on absolute deadlines (the flip event can come back early)
+        next += period;
+        if (next < now() - period) next = now();      // fell behind: resync
+        struct timespec ts = { (time_t)next, (long)((next - (time_t)next) * 1e9) };
+        clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, 0);
     }
 }

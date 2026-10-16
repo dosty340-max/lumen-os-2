@@ -61,13 +61,13 @@ int input_poll(InputEv *out, int max) {
                     else if (e->code == KEY_LEFTCTRL || e->code == KEY_RIGHTCTRL) ctrl = e->value != 0;
                     else if (e->value && n < max) {   // press or autorepeat
                         int k = keymap(e->code);
-                        if (k) out[n++] = (InputEv){ EV_KEY, touch_x, touch_y, k };
+                        if (k) out[n++] = (InputEv){ T_KEY, touch_x, touch_y, k };
                     }
                 } else if (e->type == EV_SYN && e->code == SYN_REPORT) {
                     touch_x = ax; touch_y = ay;
-                    if (btn && !prev_btn && n < max) out[n++] = (InputEv){ EV_DOWN, ax, ay, 0 };
-                    else if (btn && moved && n < max) out[n++] = (InputEv){ EV_MOVE, ax, ay, 0 };
-                    else if (!btn && prev_btn && n < max) out[n++] = (InputEv){ EV_UP, ax, ay, 0 };
+                    if (btn && !prev_btn && n < max) out[n++] = (InputEv){ T_DOWN, ax, ay, 0 };
+                    else if (btn && moved && n < max) out[n++] = (InputEv){ T_MOVE, ax, ay, 0 };
+                    else if (!btn && prev_btn && n < max) out[n++] = (InputEv){ T_UP, ax, ay, 0 };
                     prev_btn = btn; moved = 0;
                     touch_down = btn;
                 }
