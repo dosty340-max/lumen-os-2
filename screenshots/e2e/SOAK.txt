@@ -1,0 +1,5 @@
+32 windows of 10 s, clock reached 316.46 s
+first window (startup): ('18.1', '0', '6.01', '6', '5640')
+steady state: min 29.9 fps, mean 30.02 fps, 0 dropped frames, max |frame lag| 28 ms, buffering events 0
+UI: min 60.0 fps, worst frame 25.9 ms
+NONSILENT

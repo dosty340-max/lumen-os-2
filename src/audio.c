@@ -141,7 +141,9 @@ static void *mixer(void *arg) {
             if (ioctl(fd, SNDRV_PCM_IOCTL_WRITEI_FRAMES, &x) < 0) {
                 if (errno == EPIPE || errno == ESTRPIPE) { ioctl(fd, SNDRV_PCM_IOCTL_PREPARE); continue; }
                 if (errno == EINTR || errno == EAGAIN) continue;
-                LOG("audio: write failed (%s)", strerror(errno));
+                static int nerr;
+                if (nerr++ < 5) LOG("audio: write failed (%s), re-preparing", strerror(errno));
+                ioctl(fd, SNDRV_PCM_IOCTL_PREPARE);   // host side hiccup (e.g. CoreAudio starting): recover like an xrun
                 usleep(20000);
                 break;
             }

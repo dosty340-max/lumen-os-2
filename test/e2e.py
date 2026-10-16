@@ -157,6 +157,19 @@ def main():
     phone.tapL(47, 805)
     ok = wait_log(r"web: loaded (\S*wiki/Penguin) -> 200", 40, m)
     check("5e back", ok); time.sleep(1.5); shot("web_back")
+    m = mark()
+    phone.tapL(195, 805); time.sleep(0.6)          # bookmark this page
+    check("5f bookmark", wait_log(r"notify: Web: Bookmark added", 3, m))
+    loads = 0
+    for url in ["news.ycombinator.com", "text.npr.org"]:   # two more tabs
+        phone.tapL(269, 805); time.sleep(0.8)
+        phone.tapL(101, 140 + 29 + 10 + 96 * (1 if url.startswith("news") else 2)); time.sleep(0.6)
+        m = mark(); phone.type(url + "\n")
+        loads += bool(wait_log(r"web: loaded \S+ -> 200", 40, m)); time.sleep(1.5)
+    shot("web_third_tab_npr")
+    phone.tapL(269, 805); time.sleep(1.0); shot("web_tab_switcher")
+    check("5g three tabs (HN + NPR in new tabs)", loads == 2)
+    phone.tapL(150, 182); time.sleep(1.0); shot("web_tab1_again")
     home()
     # 6. search from the home slab --------------------------------------------------------------------------
     m = mark()
@@ -213,6 +226,17 @@ def main():
     phone.dragL(195, 700, 195, 250, 300, hold_end=0.2); time.sleep(1.2)
     p = shot("settings_scrolled")
     btn = find_color(p, lambda c: c[0] > 240 and 90 < c[1] < 125 and c[2] < 70, P(500), P(800))
+    if btn:   # rows are positioned relative to the orange Restart button
+        ry = btn[1] + 20
+        m = mark()
+        phone.tap(360, ry - 282); time.sleep(0.8); shot("settings_network")
+        phone.tapL(195, 618)
+        check("settings network: test connection", wait_log(r"net: test connection: OK", 20, m)); time.sleep(0.5); shot("settings_network_tested")
+        phone.tapL(38, 80); time.sleep(0.6)
+        phone.tap(360, ry - 142); time.sleep(0.8); shot("settings_about")
+        phone.tapL(38, 80); time.sleep(0.8)
+        p = shot("settings_scrolled_again")
+        btn = find_color(p, lambda c: c[0] > 240 and 90 < c[1] < 125 and c[2] < 70, P(500), P(800))
     m = mark()
     if btn: phone.tap(btn[0] + 30, btn[1] + 20)
     ok = wait_log(r"ui: reboot requested", 5, m)
