@@ -52,6 +52,7 @@ int main(void) {
     store_init();
     settings_load();
     audio_init();
+    net_init();
     shell_init();
     photos_init();
 

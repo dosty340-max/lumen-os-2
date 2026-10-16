@@ -7,7 +7,6 @@ static Gest g;
 static Scroll sc;
 static int slider;            // 1 brightness, 2 volume
 static float sl_x0, sl_w;
-static Spring page_x;
 static char test_result[128];
 static volatile int testing;
 
@@ -206,14 +205,13 @@ static void set_slider(float x) {
 
 static void touch(InputEv *e) {
     int r = gest(&g, e);
-    if (r == G_DOWN && page == 0) {
-        int id = hit_at(e->x, e->y);
-        if (id == 0xF10 || id == 0xF11) { slider = id - 0xF0F; set_slider(e->x); }
-        return;
-    }
+    static int cand;   // slider under the finger; engages only on a horizontal drag or a tap
+    if (r == G_DOWN) { int id = page == 0 ? hit_at(e->x, e->y) : 0; cand = (id == 0xF10 || id == 0xF11) ? id - 0xF0F : 0; return; }
+    if (r == G_DRAG_START && cand && !g.vert) slider = cand;
+    if (r == G_TAP && cand) { slider = cand; set_slider(e->x); }
     if (slider) {
         if (r == G_DRAG || r == G_DRAG_START) set_slider(e->x);
-        if (r == G_DRAG_END || r == G_TAP) { slider = 0; settings_save(); if (SET.vol) audio_tone(880, 0.12f, 0.6f); }
+        if (r == G_DRAG_END || r == G_TAP) { slider = 0; cand = 0; settings_save(); if (SET.vol) audio_tone(880, 0.12f, 0.6f); }
         return;
     }
     if (r == G_DRAG_START || r == G_DRAG) { if (g.vert && page == 0) scroll_drag(&sc, r == G_DRAG_START ? g.y - g.y0 : g.dy); }
