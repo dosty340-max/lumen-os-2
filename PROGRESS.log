@@ -1,0 +1,3 @@
+11:12  read PROMPT.md, fetched allowed third-party code (stb, BearSSL 0.6, Mozilla CA bundle, Bricolage Grotesque)
+11:26  wrote ARCHITECTURE.md, Docker toolchain, minimal kernel config (6.12.113)
+11:26  M1: kernel + PID1 + raw DRM page-flip boots to a solid orange screen in 0.03 s
