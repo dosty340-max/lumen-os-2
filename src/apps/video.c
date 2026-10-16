@@ -132,7 +132,7 @@ static void do_search(void) {
 }
 
 // ---- playback pipeline ---------------------------------------------------------------------------------
-#define VQ 150
+#define VQ 900                      // up to 30 s of JPEG frames buffered
 #define DQ 6
 typedef struct { unsigned char *d; int len, pts; } Pkt;
 typedef struct { Image *im; int pts; } Frame;
@@ -141,7 +141,8 @@ static Frame dq[DQ];
 static int vq_r, vq_w, dq_r, dq_w;
 static pthread_mutex_t qmu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t qcv = PTHREAD_COND_INITIALIZER;
-static volatile int gen, ended, reader_err;
+static volatile int gen, ended, reader_err, reader_lost;
+static int retries;
 static HttpStream *stream;
 static pthread_mutex_t smu = PTHREAD_MUTEX_INITIALIZER;   // guards `stream` against abort/close races
 static VItem cur;
@@ -216,6 +217,7 @@ static void *reader_th(void *a) {
         }
     }
     LOG("video: reader done (gen %d, %ld KB video)", sa.gen, vbytes / 1024);
+    if (ok && sa.gen == gen && !ended) reader_lost = 1;   // connection dropped mid-stream: the UI resumes it
     free(abuf);
     pthread_mutex_lock(&smu);
     if (stream == s) stream = 0;
@@ -276,14 +278,14 @@ static void start_stream(double t) {
     if (t < 0) t = 0;
     if (cur.duration && t > cur.duration - 1) t = cur.duration - 1;
     base_t = t;
-    ended = 0; reader_err = 0; buffering = 0; prebuf = 1;
+    ended = 0; reader_err = 0; reader_lost = 0; buffering = 0; prebuf = 1;
     audio_stream_pause(true);
     StartArg *sa = malloc(sizeof *sa);
     sa->gen = gen; sa->t = t;
     pthread_t th;
     pthread_create(&th, 0, reader_th, sa); pthread_detach(th);
     pthread_create(&th, 0, decoder_th, (void *)(intptr_t)gen); pthread_detach(th);
-    LOG("video: play %s from %.1f s", cur.id, t);
+    LOG("video: play %s from %.1f s (duration %d s)", cur.id, t, cur.duration);
 }
 static double clock_s(void) { return base_t + audio_stream_clock(); }
 
@@ -355,6 +357,7 @@ static void play(VItem *v, double t) {
     if (shown) { image_free(shown); shown = 0; }
     shown_pts = -1;
     st_shown = st_dropped = 0; st_t = now();
+    retries = 0;
     start_stream(t);
     save_history(t);
     last_save = now();
@@ -395,6 +398,13 @@ static void update(void) {
     pthread_cond_broadcast(&qcv);
     int qd = dq_w - dq_r;
     pthread_mutex_unlock(&qmu);
+    if (reader_lost && pstate == 1 && retries < 5) {   // resume where the audio clock is
+        retries++;
+        double at = clock_s();
+        LOG("video: stream lost, resuming at %.1f s (retry %d)", at, retries);
+        start_stream(at);
+        return;
+    }
     if (ended && buffered == 0 && qd == 0 && pstate == 1 && !prebuf) {
         pstate = 3; save_history(cur.duration); LOG("video: ended");
     }

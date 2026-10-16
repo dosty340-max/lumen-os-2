@@ -560,6 +560,7 @@ static void apply(Sheet *sh, Style *st, const Style *par, const char *prop, cons
         else { Len l = parse_len(val, st->fs); st->lh = l.unit == 2 ? l.v / 100 : (strstr(val, "px") || strstr(val, "em")) ? l.v / st->fs : strtof(val, 0); }
         if (st->lh < 0.8f || st->lh > 3) st->lh = 1.35f;
     } else if (!strcmp(p, "visibility")) st->hidden = !strcmp(val, "hidden") || !strcmp(val, "collapse");
+    else if (!strcmp(p, "opacity") && isdigit((unsigned char)val[0]) && strtof(val, 0) < 0.02f) st->hidden = 1;
     else if (!strcmp(p, "float")) st->floated = strcmp(val, "none") != 0;
     else if (!strcmp(p, "position")) st->pos_abs = !strcmp(val, "absolute") || !strcmp(val, "fixed");
     else if (!strcmp(p, "left")) st->left = parse_len(val, st->fs);

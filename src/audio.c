@@ -9,7 +9,7 @@
 
 #define RATE 48000
 #define BLOCK 960                       // 20 ms per write
-#define RING (RATE * 12)                // video PCM ring: 12 s
+#define RING (RATE * 40)                // video PCM ring: 40 s
 static int fd = -1;
 static unsigned long buf_frames = 8192;
 static int16_t ring[RING * 2];

@@ -12,7 +12,8 @@ if [ ! -f build/Image ] || [ ! -f build/initramfs.cpio ] || \
 fi
 
 # 2. data disk (raw, holds notes/settings/history; see src/store.c)
-[ -f data.img ] || { echo "Creating data.img"; dd if=/dev/zero of=data.img bs=1048576 count=8 2>/dev/null; }
+DATA="${LUMEN_DATA:-data.img}"
+[ -f "$DATA" ] || { echo "Creating $DATA"; dd if=/dev/zero of="$DATA" bs=1048576 count=8 2>/dev/null; }
 
 # 3. YouTube bridge (stopped again when QEMU exits)
 BRIDGE=""
@@ -34,7 +35,7 @@ qemu-system-aarch64 -M virt -accel hvf -cpu host -smp 4 -m 2048 \
   -device virtio-tablet-pci -device virtio-keyboard-pci \
   -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
   -audiodev "$AUDIO" -device virtio-sound-pci,audiodev=snd0 \
-  -drive file=data.img,format=raw,if=none,id=d0 -device virtio-blk-pci,drive=d0 \
+  -drive file="$DATA",format=raw,if=none,id=d0 -device virtio-blk-pci,drive=d0 \
   -device virtio-rng-pci \
   -rtc base=localtime \
   -vnc localhost:1 -display none \

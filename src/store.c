@@ -148,6 +148,10 @@ void settings_load(void) {
     SET.wifi = store_geti("set.wifi", 1);
     SET.airplane = store_geti("set.airplane", 0);
     theme_apply();
+    const char *notes = store_get("notes"), *vh = store_get("video.history");
+    const char *n1 = notes ? strchr(notes, '\x1f') : 0;
+    LOG("store: persisted accent=%s dark=%d notes=%d first_note=\"%.*s\" video_history=\"%.*s\"", ACCENT_NAMES[SET.accent], SET.dark,
+        store_geti("notes.count", 0), n1 ? (int)strcspn(n1 + 1, "\n\x1e") : 0, n1 ? n1 + 1 : "", vh ? (int)strcspn(vh, "\t") : 0, vh ? vh : "");
 }
 void settings_save(void) {
     store_seti("set.accent", SET.accent);

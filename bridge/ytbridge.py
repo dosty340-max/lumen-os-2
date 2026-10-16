@@ -32,6 +32,8 @@ def search(q):
     out = subprocess.run([YTDLP, "--flat-playlist", "-J", "--no-warnings", f"ytsearch20:{q}"],
                          capture_output=True, timeout=90)
     entries = json.loads(out.stdout or b"{}").get("entries") or []
+    if not entries and out.returncode:
+        raise RuntimeError(out.stderr.decode(errors="replace").strip()[-300:] or "yt-dlp search failed")
     words = {w for w in q.lower().split() if len(w) > 1}
     results = []
     for e in entries:
@@ -45,7 +47,8 @@ def search(q):
     # gentle local re-rank: results whose title+channel contain more of the query words come first
     # (stable, so YouTube's own order is kept among equals)
     results.sort(key=lambda r: -len(words & set((r["title"] + " " + r["channel"]).lower().split())))
-    _search_cache[q] = results
+    if results:                         # never cache an empty answer (YouTube hiccups happen)
+        _search_cache[q] = results
     return results
 
 
@@ -148,7 +151,12 @@ class Handler(BaseHTTPRequestHandler):
         ar, aw = os.pipe()
         inputs = []
         for url in urls:
-            inputs += ["-ss", f"{t:.3f}", "-i", url]
+            # read ~real time after a 15 s burst so ffmpeg never idles long enough for YouTube
+            # to drop the connection, and reconnect if it does anyway
+            inputs += ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_on_network_error", "1",
+                       "-reconnect_delay_max", "5", "-rw_timeout", "15000000",
+                       "-readrate", "1.1", "-readrate_initial_burst", "15", "-readrate_catchup", "2",
+                       "-ss", f"{t:.3f}", "-i", url]
         amap = "1:a:0" if len(urls) > 1 else "0:a:0?"
         vf = f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,fps={FPS}"
         cmd = [FFMPEG, "-loglevel", "error", "-nostdin", *inputs,

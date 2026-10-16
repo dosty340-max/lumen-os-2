@@ -1,0 +1,33 @@
+Lumen OS 2 e2e — 2026-10-16 13:01 — 29/29 passed in 191 s
+
+PASS  1 boot animation
+PASS  network up via own DHCP
+PASS  HTTPS example.com fetched at boot
+PASS  2 unlock by pushing the lime slab
+PASS  3 drawers open and close (accordion)
+PASS  4a calculator 12 x 3 = 36
+PASS  4b note saved
+PASS  4c accent set changed
+PASS  4d light mode
+PASS  4d dark mode back
+PASS  4e timer counts down and alerts
+PASS  4f game played (board changed)  (0.109 of pixels changed)
+PASS  5a example.com over HTTPS
+PASS  5b Wikipedia article
+PASS  5c scroll
+PASS  5d tap a link  (https://en.wikipedia.org/wiki/Eudyptes)
+PASS  5e back
+PASS  6 search 'lumen os' from the home slab  (DuckDuckGo HTTP 202 (DDG bot challenge page))
+PASS  7 video search  (first: What If the Internet Went Down for 24 Hours? / The Render Guy)
+PASS  8a plays 20 s  (18.0 fps shown, 0 dropped)
+PASS  8b seek to 1:00  (59.2 s)
+PASS  8c fullscreen + moving video  (0.003 of pixels differ between frames)
+PASS  8d audio device got samples  (28 s of audio captured during playback)
+PASS  9 Wi-Fi off/on reconnects
+PASS  10a restart from Settings
+PASS  10b accent set persisted  (Sunset)
+PASS  10c note persisted  (Slab test note)
+PASS  10d watch history persisted  (J5nOgzc46Ug)
+PASS  UI frame rate  (min 55.8 fps, median 59.7 fps over 18 10 s windows)
+
+Screenshots: screenshots/e2e/

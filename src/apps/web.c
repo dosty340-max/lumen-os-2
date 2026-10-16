@@ -325,6 +325,7 @@ static Tab *new_tab(void) {
     return t;
 }
 static void navigate(Tab *t, const char *url, const char *body, int hist_mode) {
+    if (hist_mode == 0 && t->hpos >= 0 && t->hpos < t->nhist) t->hscroll[t->hpos] = t->sc.pos;   // for Back
     pthread_mutex_lock(&t->jmu);
     free(t->job_url); free(t->job_body);
     t->job = 1; t->job_url = xstrdup(url); t->job_body = body ? xstrdup(body) : 0; t->job_hist = hist_mode;
