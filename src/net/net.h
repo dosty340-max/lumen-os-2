@@ -32,6 +32,7 @@ typedef struct HttpStream HttpStream;
 HttpStream *http_open(const char *url, int *status, char *err, int errn);   // streaming GET body
 int http_read(HttpStream *s, void *buf, int n);      // >0 bytes, 0 EOF, <0 error
 void http_close(HttpStream *s);
+void http_abort(HttpStream *s);   // thread-safe: makes a blocked http_read return
 
 // inflate (RFC 1951) with zlib/gzip wrappers; returns malloc'd output
 unsigned char *inflate_any(const unsigned char *in, size_t n, size_t *outn);

@@ -61,6 +61,8 @@ void g_image(Canvas *c, const Image *im, float x, float y, float w, float h, flo
 void g_image_cover(Canvas *c, const Image *im, float x, float y, float w, float h, float radius, int alpha);
 // draw src transformed: dst point (x,y) samples src at (m0*x+m1*y+m2, m3*x+m4*y+m5)
 void g_layer(Canvas *dst, const Canvas *src, const float inv[6], float bx0, float by0, float bx1, float by1, int alpha);
+void g_layer_fast(Canvas *dst, const Canvas *src, const float inv[6], float bx0, float by0, float bx1, float by1);
+void g_rot90(Canvas *dst, const Canvas *src);
 void g_layer_rect(Canvas *dst, const Canvas *src, float x, float y, float w, float h, float radius, int alpha);
 void g_dim(Canvas *c, float k);       // multiply all pixels by k (brightness)
 uint32_t c_alpha(uint32_t col, float a);

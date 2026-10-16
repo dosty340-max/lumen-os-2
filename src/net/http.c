@@ -382,6 +382,7 @@ int http_read(HttpStream *s, void *buf, int n) {
     return r;
 }
 
+void http_abort(HttpStream *s) { if (s) shutdown(s->c->fd, SHUT_RDWR); }   // unblocks a reader on another thread
 void http_close(HttpStream *s) {
     if (!s) return;
     if (s->done && s->keep) conn_put(s->c);

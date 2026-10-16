@@ -269,6 +269,32 @@ void g_layer(Canvas *dst, const Canvas *src, const float m[6], float bx0, float 
     }
 }
 
+// nearest-neighbour variant of g_layer (for motion, ~3x cheaper)
+void g_layer_fast(Canvas *dst, const Canvas *src, const float m[6], float bx0, float by0, float bx1, float by1) {
+    int ya = maxi(dst->cy0, (int)floorf(by0)), yb = mini(dst->cy1, (int)ceilf(by1));
+    int xa = maxi(dst->cx0, (int)floorf(bx0)), xb = mini(dst->cx1, (int)ceilf(bx1));
+    int dux = (int)(m[0] * 65536), dvx = (int)(m[3] * 65536);
+    for (int py = ya; py < yb; py++) {
+        float fy = py + 0.5f, fx = xa + 0.5f;
+        int iu = (int)((m[0] * fx + m[1] * fy + m[2]) * 65536), iv = (int)((m[3] * fx + m[4] * fy + m[5]) * 65536);
+        uint32_t *d = dst->px + (size_t)py * dst->w;
+        for (int px = xa; px < xb; px++, iu += dux, iv += dvx) {
+            int u = iu >> 16, v = iv >> 16;
+            if (iu < 0 || iv < 0 || u >= src->w || v >= src->h) continue;
+            d[px] = src->px[(size_t)v * src->w + u];
+        }
+    }
+}
+// exact quarter turn: dst(x, y) = src(u = y, v = src->h - 1 - x); dst is src rotated clockwise
+void g_rot90(Canvas *dst, const Canvas *src) {
+    int w = mini(dst->w, src->h), h = mini(dst->h, src->w);
+    for (int y = 0; y < h; y++) {
+        uint32_t *d = dst->px + (size_t)y * dst->w;
+        const uint32_t *s = src->px + y + (size_t)(src->h - 1) * src->w;
+        for (int x = 0; x < w; x++, s -= src->w) d[x] = *s;
+    }
+}
+
 void g_dim(Canvas *c, float k) {
     unsigned m = (unsigned)(clampf(k, 0, 1) * 256);
     size_t n = (size_t)c->w * c->h;

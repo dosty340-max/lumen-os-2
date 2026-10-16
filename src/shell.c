@@ -570,6 +570,7 @@ static void draw_touch(Canvas *c) {
 void shell_frame(Canvas *c, float dt) {
     hit_frame();
     clock_tick(dt);
+    video_tick();
     update_numerals(dt);
     for (int i = 0; i < NDRAWER; i++) if (drag_tab < 0) spring_step(&dtop[i], dt, 2.6f, 0.78f);
 
