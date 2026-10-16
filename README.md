@@ -1,108 +1,178 @@
-# Lumen OS 2 — "Slab"
+<p align="center">
+  <img src="docs/media/banner.jpg" alt="Lumen OS 2: a phone OS written from scratch by Claude" width="100%">
+</p>
 
-A phone operating system written from scratch for QEMU (`virt`, aarch64, HVF) on an
-Apple Silicon Mac. Everything above the Linux kernel is one C program written for
-this project: init, display, compositor, UI toolkit, shell, eight apps, a DHCP client,
-DNS resolver, HTTP/1.1 client, an HTML/CSS engine and audio/video playback.
+<p align="center">
+  <a href="#run-it"><img alt="Runs in QEMU" src="https://img.shields.io/badge/runs%20in-QEMU%20aarch64-FF6A2B?style=for-the-badge"></a>
+  <img alt="Language C" src="https://img.shields.io/badge/written%20in-C-C8B8FF?style=for-the-badge&labelColor=141414">
+  <img alt="Lines of code" src="https://img.shields.io/badge/own%20code-8%2C227%20lines-DFFF5E?style=for-the-badge&labelColor=141414">
+  <img alt="Tests" src="https://img.shields.io/badge/e2e-32%2F32%20passing-7FD4FF?style=for-the-badge&labelColor=141414">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-F3F0E8?style=for-the-badge&labelColor=141414"></a>
+</p>
 
-The design is "Slab": solid colour slabs that stack and overlap, giant 800-weight
-numerals, accordion drawers instead of an icon grid. No gradients, no blur, no shadows.
+<h3 align="center">No Android. No iOS. No UI toolkit. No browser engine.<br>Just a Linux kernel, and everything above it written by Claude.</h3>
+
+<p align="center">
+  <a href="#-what-it-can-do">Features</a> ·
+  <a href="#-screenshots">Screenshots</a> ·
+  <a href="#-how-it-works">How it works</a> ·
+  <a href="#run-it">Run it</a> ·
+  <a href="#-the-story">The story</a> ·
+  <a href="docs/TECHNICAL.md">Technical docs</a>
+</p>
+
+---
+
+<table>
+<tr>
+<td width="50%" align="center">
+  <img src="docs/media/demo_slab.gif" width="300" alt="Boot, lock screen, unlock and the drawer home screen"><br>
+  <sub><b>Boot → lock → push the slab → drawers</b></sub>
+</td>
+<td width="50%" align="center">
+  <img src="docs/media/demo_internet.gif" width="300" alt="Wikipedia in the phone's own browser, then YouTube playing and rotating"><br>
+  <sub><b>Its own browser → YouTube → fullscreen rotation</b></sub>
+</td>
+</tr>
+</table>
+
+## ✦ What it can do
+
+| | |
+|---|---|
+| 🟧 **Slab design** | Solid colour slabs that stack and overlap, giant numerals, accordion drawers instead of an icon grid. No gradients, no glass, no shadows. Designed to look like nothing else. |
+| 🔒 **Lock screen** | The hour and the minutes bleed off the edges, live weather from the internet, notifications. Push the lime slab up and the bands follow like stacked paper. |
+| 🗂 **Home** | Four drawers (Watch, Make, Play, System). One opens at a time, with springs and fling physics everywhere. |
+| 🌐 **Real internet** | Its own DHCP client (built from raw Ethernet frames), DNS resolver, HTTP/1.1 client, inflate, and HTTPS through BearSSL. |
+| 🧭 **Its own web browser** | HTML tokenizer and tree builder, CSS cascade, block/inline/table layout, forms, tabs, bookmarks. Wikipedia, Hacker News and CNN Lite render on the phone. |
+| ▶️ **YouTube** | Search, play with sound, seek, fullscreen with an animated rotation. Every frame and audio sample is decoded on the phone (30 fps, 0 dropped). |
+| 📱 **Apps** | Video, Web, Photos, Notes (own keyboard), Clock (stopwatch, timer), Calculator, 2048, Settings. Everything persists across reboots. |
+| 🎛 **System** | Home gesture, control center with real Wi-Fi and airplane toggles, brightness and volume slabs, Now Playing, dark and light themes, accent colour sets. |
+
+## ✦ Screenshots
+
+<p align="center">
+  <img src="screenshots/e2e/03_lock_screen.png" width="190" alt="Lock screen">
+  <img src="screenshots/e2e/05_home.png" width="190" alt="Home screen">
+  <img src="screenshots/e2e/06_drawer_make.png" width="190" alt="Make drawer">
+  <img src="screenshots/e2e/43_control_center_now_playing.png" width="190" alt="Control center">
+</p>
+<p align="center">
+  <img src="screenshots/e2e/27_web_wikipedia.png" width="190" alt="Wikipedia in the browser">
+  <img src="screenshots/e2e/37_video_results.png" width="190" alt="YouTube search">
+  <img src="screenshots/e2e/38_video_playing_20s.png" width="190" alt="Video playing">
+  <img src="screenshots/e2e/10_calculator_12x3.png" width="190" alt="Calculator">
+</p>
+<p align="center">
+  <img src="screenshots/e2e/11_notes_editor_keyboard.png" width="190" alt="Notes with its own keyboard">
+  <img src="screenshots/e2e/22_photos_grid.png" width="190" alt="Photos">
+  <img src="screenshots/e2e/21_game_played.png" width="190" alt="2048">
+  <img src="screenshots/e2e/14_settings_accent_sunset.png" width="190" alt="Settings: accent sets">
+</p>
+
+<p align="center"><sub>Every screenshot was taken by the end-to-end test itself (QMP <code>screendump</code>). More in <a href="screenshots/">screenshots/</a>.</sub></p>
+
+## ✦ How it works
+
+```mermaid
+flowchart TB
+    subgraph PHONE["Lumen OS 2 (one C program, PID 1)"]
+        direction TB
+        UI["Slab shell · UI toolkit · 8 apps"]
+        GFX["Software rasteriser · compositor · springs"]
+        WEB["HTML + CSS engine"]
+        VID["MJPEG + PCM player · A/V sync"]
+        NET["DHCP · DNS · HTTP/1.1 · inflate · HTTPS (BearSSL)"]
+        IO["DRM/KMS page flips · evdev touch · raw ALSA"]
+        UI --> GFX --> IO
+        UI --> WEB --> NET
+        UI --> VID --> NET
+    end
+    K["Linux 6.12 kernel (drivers + TCP/IP)"]
+    Q["QEMU virt · aarch64 · HVF on Apple Silicon"]
+    B["Mac: ytbridge.py (yt-dlp + ffmpeg)"]
+    PHONE --> K --> Q
+    NET -. "virtual network 10.0.2.2" .-> B
+```
+
+- **Boot:** no bootloader. QEMU loads the kernel and initramfs directly, the framebuffer console is off, so the first pixels you see are drawn by Lumen.
+- **Rendering:** a hand-written software rasteriser (signed-distance anti-aliased shapes, glyph cache) feeding double-buffered DRM page flips at a steady 60 fps.
+- **Networking:** the kernel only drives the virtual network card and TCP/IP. DHCP, DNS, HTTP, gzip and the browser are Lumen's own code.
+
+### The YouTube bridge, honestly
+
+The phone can't run YouTube's own player, so a small helper runs on the Mac: [`bridge/ytbridge.py`](bridge/ytbridge.py) (Python standard library, about 220 lines). It uses **yt-dlp** to search and resolve streams and **ffmpeg** to re-encode them into a deliberately simple format: baseline JPEG frames plus raw PCM, interleaved as described in [`docs/STREAM.md`](docs/STREAM.md). The phone fetches that over the virtual network with its own HTTP client, then decodes every frame and every audio sample itself and keeps them in sync with the audio clock.
 
 ## Run it
 
-Requirements on the Mac: Docker (colima is fine), and `brew install qemu yt-dlp ffmpeg`.
+You need an Apple Silicon Mac with Docker (colima works) and:
+
+```bash
+brew install qemu yt-dlp ffmpeg
+```
+
+Then:
 
 ```bash
 ./run.sh
 ```
 
-then connect a VNC viewer to `localhost:5901`. The mouse is your finger.
+Connect a VNC viewer to `localhost:5901`. The mouse is your finger. The first run builds the kernel and userland inside an arm64 container (about 3 minutes), later runs boot in about a second.
 
-`run.sh` builds everything inside an arm64 Alpine container the first time (kernel
-~3 min, the rest seconds), creates `data.img` (the phone's 8 MB data disk) if it is
-missing, starts the YouTube bridge in the background, boots QEMU with a QMP socket at
-`build/qmp.sock`, and stops the bridge again when QEMU exits.
-Serial output (kernel + OS log, including frame-time and video stats) goes to
-`build/serial.log`.
-
-Useful environment variables: `LUMEN_DATA=path.img` (another data disk),
-`LUMEN_AUDIO=wav,id=snd0,path=out.wav` (capture audio instead of playing it),
-`LUMEN_NO_BRIDGE=1`.
-
-Tests: `test/e2e.py` boots the phone headless and drives the whole flow through QMP
-(see `screenshots/e2e/REPORT.txt`); `test/inflate_check.sh` checks the inflate
-implementation against Python's zlib; `test/webdump.sh page.html` dumps the browser's
-display list for a saved page.
-
-## What is in it
+<details>
+<summary><b>Useful options and tests</b></summary>
 
 | | |
 |---|---|
-| **Boot** | No bootloader: QEMU loads the kernel and initramfs directly. Framebuffer console is off, so the first pixels you see are ours. Boot animation: the three lock bands slam in with spring overshoot and "lumen" types in. |
-| **Lock** | Hour and minute as giant numerals bleeding off the edges, lime slab with date, live weather (wttr.in), notifications. Push the lime slab up; the bands above follow with lag like stacked paper. Numerals roll like a slot machine when the minute changes. |
-| **Home** | Date numeral, search slab, four drawers (Watch, Make, Play, System) stacked from the bottom; one open at a time, tap or drag tabs. |
-| **Apps** | Video (YouTube search + playback), Web, Photos, Notes, Clock, Calculator, Game (2048), Settings. |
-| **System** | Home gesture from the bottom edge (the app shrinks back into its tile), control center pulled from the top (real Wi-Fi / airplane toggles, dark/light, mute, brightness and volume slabs, Now Playing), touch circle for recordings. |
-| **Persistence** | Notes, settings, accent set, bookmarks, browser history, game best score and video watch history survive reboots (key/value store with A/B slots on the raw data disk; no filesystem needed). |
+| `LUMEN_DATA=path.img` | use another data disk (notes, settings, history) |
+| `LUMEN_AUDIO=wav,id=snd0,path=out.wav` | capture audio to a file instead of playing it |
+| `LUMEN_NO_BRIDGE=1` | start without the YouTube bridge |
+| `test/e2e.py` | boots the phone headless and drives the whole flow through QMP (32 checks) |
+| `test/soak.py` | 5-minute video playback soak test |
+| `test/inflate_check.sh` | checks the inflate implementation against zlib |
 
-## Written from scratch vs. third-party
+Serial output (kernel + OS log with frame times and video stats) goes to `build/serial.log`. Touch targets for automation are listed in [`HANDOVER.md`](HANDOVER.md).
+</details>
 
-Written for this project (`src/`, about 8,000 lines of C):
+## ✦ By the numbers
 
-- PID 1 init, raw DRM/KMS display driver client with page flips, evdev input
-- software rasteriser (signed-distance anti-aliased rounded rects, lines, arcs, bilinear blits, rotation), compositor, springs and fling physics
-- the Slab shell, UI toolkit, own on-screen keyboard, line icons, all eight apps
-- raw-ioctl ALSA PCM output with a mixer thread (no alsa-lib)
-- DHCP client (hand-built Ethernet/IPv4/UDP/BOOTP frames on AF_PACKET), rtnetlink configuration, DNS resolver with cache
-- HTTP/1.1 client: keep-alive, chunked, redirects, cookies; RFC 1951 inflate + gzip/zlib wrappers
-- HTML tokenizer and tree builder, CSS parser + cascade, block/inline/table layout, forms
-- MJPEG + PCM player with audio-clock A/V sync; procedural photo generator; key/value store
-
-Third-party code, and nothing else:
-
-| What | Why |
+| | |
 |---|---|
-| Linux 6.12 LTS kernel (incl. its TCP/IP stack and UAPI headers) | underneath everything |
-| musl libc (Alpine) | C library |
-| `stb_truetype.h` | glyph rasterising |
-| `stb_image.h` (PNG/JPEG only) | images in Web, thumbnails and every video frame |
+| Own code | **8,227 lines** (about 8,000 lines of C in `src/` + the 220-line bridge) |
+| Build time | about **2 hours** of Claude Code, from an empty folder ([`PROGRESS.log`](PROGRESS.log)) |
+| Tests | **32 / 32** end-to-end checks passing ([report](screenshots/e2e/REPORT.txt)) |
+| UI | **60 fps** median (frame work 4 to 10 ms) |
+| Video | **30.0 fps**, 0 dropped frames over a 316 s soak, max A/V lag 28 ms |
+| Network up | own DHCP client configures the interface in about **35 ms** |
+
+## ✦ Written from scratch vs. third-party
+
+Everything in `src/` was written for this project. The only third-party code:
+
+| What | Used for |
+|---|---|
+| Linux 6.12 LTS kernel | drivers and TCP/IP underneath everything |
+| musl libc | C library |
+| `stb_truetype.h`, `stb_image.h` | glyphs, PNG/JPEG decoding (including every video frame) |
 | BearSSL 0.6 | TLS for HTTPS |
-| Mozilla CA bundle (`cacert.pem`) | certificate validation, compiled into trust anchors |
-| Bricolage Grotesque (OFL) | the only font; instanced to static 400/600/800 with fonttools at build time |
+| Mozilla CA bundle | certificate validation |
+| Bricolage Grotesque (OFL) | the only font |
 
-There is no JavaScript engine. The browser renders HTML and CSS only.
+There is no JavaScript engine: the browser renders HTML and CSS only. Full details in [`docs/TECHNICAL.md`](docs/TECHNICAL.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## The YouTube bridge, honestly
+## ✦ The story
 
-The phone cannot run YouTube's own player, so a small helper runs on the Mac:
-`bridge/ytbridge.py` (Python standard library only, about 220 lines). It
+This is **part 2**. In part 1, Claude built a phone OS from scratch and a lot of people watched it. The top comment said it looked like an iOS clone, and honestly it did.
 
-1. calls **yt-dlp** to search YouTube (`/search`) and to resolve the real stream URLs,
-   and fetches the 320x180 thumbnails (`/thumb`);
-2. runs **ffmpeg** to decode the YouTube stream and re-encode it into a deliberately
-   simple format: baseline JPEG frames (640x360, 30 fps) and raw PCM (48 kHz stereo);
-3. interleaves those into the packet format documented in `docs/STREAM.md` and sends it
-   over plain HTTP.
+So for part 2, Claude designed three completely new phone UIs (Orbit, Folio and Slab), "Slab" won, and Claude Code built the whole OS again from an empty folder, this time with real internet and YouTube. The original prompt is in [`PROMPT.md`](PROMPT.md).
 
-The phone reaches it at `http://10.0.2.2:8765` through QEMU's virtual network, using its
-own DHCP/DNS/HTTP code. From there everything happens on the phone: a reader thread
-demuxes packets, a decoder thread decodes every JPEG frame with stb_image, PCM goes
-to the virtio-sound device through raw ALSA ioctls, and the player shows the frame that
-matches the audio clock (late frames are dropped, audio never waits). Seeking reopens
-the stream at a new time. If the bridge is not running, the Video app says so and
-offers a retry.
+<p align="center">
+  <a href="https://youtu.be/ANYIBMva0wI"><img alt="Watch part 1 on YouTube" src="https://img.shields.io/badge/watch-part%201%20on%20YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
+  <a href="https://www.youtube.com/channel/UCRsIdKfLTPW1rCOrOOfBAmA"><img alt="The Render Guy on YouTube" src="https://img.shields.io/badge/channel-The%20Render%20Guy-141414?style=for-the-badge&logo=youtube&logoColor=FF0000"></a>
+</p>
 
-One small convenience: the bridge re-ranks YouTube's 20 results by how many of the
-query words appear in the title and channel (a stable sort, YouTube's order is kept
-among ties). Without it an exact "title + channel" search can land far down the list
-for an unsigned-in search.
+## License
 
-## Notes
+[MIT](LICENSE) for the Lumen OS code. Third-party components keep their own licenses: BearSSL (MIT, `third_party/bearssl/LICENSE.txt`), stb (public domain / MIT), Bricolage Grotesque (SIL OFL, `third_party/fonts/OFL.txt`), Mozilla CA bundle (MPL 2.0), Linux (GPL-2.0, not included in this repository).
 
-- DuckDuckGo sometimes answers automated-looking searches with its own "select the
-  ducks" challenge page (HTTP 202). The browser renders it like any other page; a human
-  can solve it there. Searching through DuckDuckGo's own HTML form (open
-  `html.duckduckgo.com/html/`) uses POST and is usually accepted.
-- The clock comes from the PL031 RTC with `-rtc base=localtime`, so the phone shows Mac
-  local time.
-- Architecture and milestones: `ARCHITECTURE.md`. Build timeline: `PROGRESS.log`.
+<p align="center"><sub>Built by <b>Claude</b> (Anthropic) with Claude Code · made for <b>The Render Guy</b></sub></p>
