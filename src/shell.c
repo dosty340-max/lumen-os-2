@@ -234,7 +234,7 @@ static void drawer_info(int d, char *buf, int n) {
     } else if (d == 1) {
         float t = clock_timer_left();
         if (t >= 0) snprintf(buf, n, "Timer %d:%02d", (int)t / 60, (int)t % 60);
-        else snprintf(buf, n, "%d notes", store_geti("notes.count", 0));
+        else { int nn = store_geti("notes.count", 0); snprintf(buf, n, "%d note%s", nn, nn == 1 ? "" : "s"); }
     } else if (d == 2) snprintf(buf, n, "Best %d", game_best());
     else {
         NetInfo ni;

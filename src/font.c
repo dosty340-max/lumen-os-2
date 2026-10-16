@@ -161,3 +161,38 @@ char *text_ellipsize(int f, float px, const char *s, float maxw) {
     while (n > 0 && s[n - 1] == ' ') n--;
     return strfmt("%.*s…", n, s);
 }
+
+// Greedy word wrap. Fills line start offsets / byte lengths; returns line count.
+// A trailing newline yields a final empty line (so a caret can sit there).
+int text_wrap(int f, float px, const char *s, float maxw, int *st, int *ln, int max) {
+    int n = 0;
+    const char *p = s;
+    while (n < max) {
+        const char *ls = p, *q = p, *brk = 0;
+        float w = 0;
+        int prevg = 0;
+        while (*q && *q != '\n') {
+            const char *nx = q;
+            int cp = utf8_next(&nx);
+            pthread_mutex_lock(&mu);
+            Glyph *g = glyph(f, px, cp);
+            float adv = g->adv + kern(f, px, prevg, g->glyph);
+            prevg = g->glyph;
+            pthread_mutex_unlock(&mu);
+            if (w + adv > maxw && q > ls) break;
+            w += adv;
+            if (*q == ' ') brk = q;
+            q = nx;
+        }
+        if (!*q || *q == '\n') {
+            st[n] = ls - s; ln[n] = q - ls; n++;
+            if (!*q) break;
+            p = q + 1;
+            if (!*p) { if (n < max) { st[n] = p - s; ln[n] = 0; n++; } break; }
+            continue;
+        }
+        if (brk && brk > ls) { st[n] = ls - s; ln[n] = brk - ls; n++; p = brk + 1; }
+        else { st[n] = ls - s; ln[n] = q - ls; n++; p = q; }
+    }
+    return n;
+}

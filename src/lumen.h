@@ -84,6 +84,7 @@ int utf8_next(const char **s);         // decode one codepoint, advance
 int utf8_put(char *o, int cp);
 // fit text into width with an ellipsis; returns malloc'd string
 char *text_ellipsize(int f, float px, const char *s, float maxw);
+int text_wrap(int f, float px, const char *s, float maxw, int *st, int *ln, int max);
 
 // ---- display & input --------------------------------------------------------
 Canvas *drm_init(void);

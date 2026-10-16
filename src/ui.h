@@ -115,3 +115,4 @@ bool video_playing(void);
 const char *video_now_title(void);
 void video_toggle_play(void);
 const char *weather_text(void);
+void photos_init(void);

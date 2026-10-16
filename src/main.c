@@ -53,6 +53,7 @@ int main(void) {
     settings_load();
     audio_init();
     shell_init();
+    photos_init();
 
     double last = now(), stat_t = last, worst = 0, flipw = 0;
     int frames = 0;
