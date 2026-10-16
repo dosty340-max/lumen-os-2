@@ -75,25 +75,27 @@
 ## ✦ How it works
 
 ```mermaid
-flowchart TB
-    subgraph PHONE["Lumen OS 2 (one C program, PID 1)"]
-        direction TB
-        UI["Slab shell · UI toolkit · 8 apps"]
-        GFX["Software rasteriser · compositor · springs"]
-        WEB["HTML + CSS engine"]
-        VID["MJPEG + PCM player · A/V sync"]
-        NET["DHCP · DNS · HTTP/1.1 · inflate · HTTPS (BearSSL)"]
-        IO["DRM/KMS page flips · evdev touch · raw ALSA"]
-        UI --> GFX --> IO
-        UI --> WEB --> NET
-        UI --> VID --> NET
-    end
-    K["Linux 6.12 kernel (drivers + TCP/IP)"]
-    Q["QEMU virt · aarch64 · HVF on Apple Silicon"]
-    B["Mac: ytbridge.py (yt-dlp + ffmpeg)"]
-    PHONE --> K --> Q
-    NET -. "virtual network 10.0.2.2" .-> B
+flowchart LR
+    APPS["Slab shell<br/>UI toolkit<br/>8 apps"] --> GFX["Rasteriser<br/>compositor<br/>60 fps"]
+    APPS --> WEB["HTML + CSS<br/>engine"]
+    APPS --> VID["MJPEG + PCM<br/>player"]
+    WEB --> NET["DHCP · DNS<br/>HTTP · HTTPS"]
+    VID --> NET
+    GFX --> K["Linux 6.12<br/>kernel"]
+    NET --> K
+    K --> Q["QEMU virt<br/>aarch64 · HVF"]
+    NET -. "10.0.2.2" .-> B["Mac helper<br/>yt-dlp + ffmpeg"]
+    style APPS fill:#FF6A2B,color:#141414,stroke:#141414
+    style GFX fill:#C8B8FF,color:#141414,stroke:#141414
+    style WEB fill:#DFFF5E,color:#141414,stroke:#141414
+    style VID fill:#7FD4FF,color:#141414,stroke:#141414
+    style NET fill:#F3F0E8,color:#141414,stroke:#141414
+    style K fill:#141414,color:#F3F0E8,stroke:#141414
+    style Q fill:#141414,color:#F3F0E8,stroke:#141414
+    style B fill:#ffffff,color:#141414,stroke:#999999,stroke-dasharray: 4 4
 ```
+
+Everything left of the kernel is one C program running as PID 1.
 
 - **Boot:** no bootloader. QEMU loads the kernel and initramfs directly, the framebuffer console is off, so the first pixels you see are drawn by Lumen.
 - **Rendering:** a hand-written software rasteriser (signed-distance anti-aliased shapes, glyph cache) feeding double-buffered DRM page flips at a steady 60 fps.
