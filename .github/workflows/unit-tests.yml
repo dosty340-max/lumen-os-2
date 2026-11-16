@@ -1,0 +1,23 @@
+name: Evdev and inflate tests
+
+on:
+  push:
+    branches: [s8-dreamlte]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  evdev-inflate:
+    name: Evdev and inflate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build test toolchain
+        run: docker build -t lumen-toolchain docker
+      - name: Test evdev
+        run: sh test/evdev_mt_check.sh
+      - name: Test inflate
+        run: sh test/inflate_check.sh
