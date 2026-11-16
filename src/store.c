@@ -12,6 +12,7 @@ static KV *kv;
 static int nkv, cap;
 static unsigned seq;
 static int dirty;
+static bool disk_enabled;
 static double dirty_t;
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
@@ -95,7 +96,9 @@ static void *saver(void *a) {
     return 0;
 }
 
-void store_init(void) {
+void store_init(bool persistent) {
+    disk_enabled = persistent;
+    if (!disk_enabled) return;
     int fd = open("/dev/vda", O_RDONLY | O_CLOEXEC);
     if (fd < 0) LOG("store: no data disk");
     else {
@@ -136,7 +139,7 @@ void store_set(const char *key, const char *val) {
 }
 int store_geti(const char *key, int def) { const char *v = store_get(key); return v ? atoi(v) : def; }
 void store_seti(const char *key, int v) { char b[16]; snprintf(b, sizeof b, "%d", v); store_set(key, b); }
-void store_flush(void) { if (dirty) save_now(); }
+void store_flush(void) { if (disk_enabled && dirty) save_now(); }
 
 void settings_load(void) {
     SET.accent = store_geti("set.accent", 0) % NACCENT;

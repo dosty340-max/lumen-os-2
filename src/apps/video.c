@@ -663,6 +663,7 @@ static void touch(InputEv *e) {
             if (id == 0x8300 + fullscreen) { scrubbing = 1; ctl_t = now(); }
         }
         if (scrubbing) {
+            if (e->type == T_CANCEL) { scrubbing = 0; return; }
             float x0 = fullscreen ? P(90) : P(16), w = fullscreen ? 1560 - P(180) : P(358);
             scrub_f = clampf((x - x0) / w, 0, 1);
             if (r == G_DRAG_END || r == G_TAP) {

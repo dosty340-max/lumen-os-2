@@ -78,7 +78,7 @@ void notify(const char *sender, const char *text);
 extern float shell_app_alpha;                 // app content fade (for apps that care)
 
 // ---- persistence (store.c) -------------------------------------------------------------------------
-void store_init(void);
+void store_init(bool persistent);
 const char *store_get(const char *key);
 void store_set(const char *key, const char *val);
 int store_geti(const char *key, int def);

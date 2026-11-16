@@ -1,5 +1,5 @@
 // Display: raw DRM/KMS ioctls, two dumb buffers, page flips with events.
-#include "lumen.h"
+#include "display.h"
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/ioctl.h>
@@ -21,7 +21,7 @@ static int xioctl(unsigned long req, void *arg) {
     return r;
 }
 
-Canvas *drm_init(void) {
+static Canvas *drm_init(void) {
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
     if (fd < 0) { LOG("drm: no card0 (%s)", strerror(errno)); return NULL; }
     xioctl(DRM_IOCTL_SET_MASTER, 0);
@@ -101,7 +101,7 @@ static void wait_flip(void) {
 }
 
 // Present the back buffer and hand out the other one for the next frame.
-Canvas *drm_flip(void) {
+static Canvas *drm_flip(void) {
     if (can_flip) {
         struct drm_mode_crtc_page_flip pf = { .crtc_id = crtc_id, .fb_id = fb_id[back], .flags = DRM_MODE_PAGE_FLIP_EVENT };
         if (xioctl(DRM_IOCTL_MODE_PAGE_FLIP, &pf) == 0) flip_pending = 1;
@@ -117,3 +117,5 @@ Canvas *drm_flip(void) {
     screen.px = map[back];
     return &screen;
 }
+
+const DisplayBackend display_backend = { .init = drm_init, .present = drm_flip };

@@ -18,7 +18,7 @@ DATA="${LUMEN_DATA:-data.img}"
 # 3. YouTube bridge (stopped again when QEMU exits)
 BRIDGE=""
 if [ -z "$LUMEN_NO_BRIDGE" ]; then
-  python3 bridge/ytbridge.py > build/bridge.log 2>&1 &
+  python3 "${LUMEN_BRIDGE_SCRIPT:-bridge/ytbridge.py}" > build/bridge.log 2>&1 &
   BRIDGE=$!
 fi
 cleanup() { [ -n "$BRIDGE" ] && kill "$BRIDGE" 2>/dev/null; rm -f build/qmp.sock; }

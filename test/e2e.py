@@ -13,7 +13,7 @@ SERIAL = os.path.join(ROOT, "build", "serial.log")
 WAV = os.path.join(ROOT, "build", "e2e-audio.wav")
 DATA = os.path.join(ROOT, "build", "e2e-data.img")
 OUT = os.path.join(ROOT, "screenshots", "e2e")
-QUERY = os.environ.get("TEST_QUERY", "What If the Internet Went Down for 24 Hours The Render Guy")
+QUERY = "Lumen video fixture"
 results, shots, n_shot = [], [], [0]
 phone = None
 
@@ -57,6 +57,23 @@ def find_color(path, test, y0, y1, step=3):
     return None
 
 
+def fullscreen_button(path):
+    """Find the button at the right of the player controls slab."""
+    img = png.read(path)
+    # This column crosses the orange slab between the rewind and play icons.
+    start = None
+    for y in range(round(P(340)), min(img[1], round(P(760)))):
+        if png.pixel(img, round(P(110)), y) == (255, 106, 43):
+            if start is None:
+                start = y
+            if y - start >= P(95):
+                # The button is vertically centered in the 110-point slab.
+                return P(338), start + P(55)
+        else:
+            start = None
+    return None
+
+
 def boot(first):
     global phone
     if first:
@@ -65,7 +82,9 @@ def boot(first):
         time.sleep(0.5)
         for f in (DATA, WAV, SERIAL):
             if os.path.exists(f): os.remove(f)
-        env = dict(os.environ, LUMEN_DATA=DATA, LUMEN_AUDIO=f"wav,id=snd0,path={WAV}")
+        env = dict(os.environ, LUMEN_DATA=DATA, LUMEN_AUDIO=f"wav,id=snd0,path={WAV}",
+                   LUMEN_BRIDGE_SCRIPT=os.path.join(HERE, "video_fixture.py"))
+        env.pop("LUMEN_NO_BRIDGE", None)
         subprocess.Popen([os.path.join(ROOT, "run.sh")], env=env, stdout=open(os.path.join(ROOT, "build", "e2e-run.log"), "w"), stderr=subprocess.STDOUT)
     wait_log(r"init: Lumen OS 2 starting", 600)
     phone = Phone()
@@ -185,7 +204,8 @@ def main():
     phone.launch("Video"); shot("video_home")
     phone.tapL(195, 139); time.sleep(0.4); phone.type(QUERY + "\n")
     ok = wait_log(r"video: (\d+) results, first \"(.*)\" by (.*)", 90, m)
-    check("7 video search", ok and int(ok.group(1)) > 0, f"first: {ok.group(2)} / {ok.group(3)}" if ok else "")
+    check("7 video search", ok and int(ok.group(1)) == 1 and ok.group(3) == "Lumen fixture",
+          f"first: {ok.group(2)} / {ok.group(3)}" if ok else "")
     time.sleep(2.5); shot("video_results")
     m = mark()
     wav0 = os.path.getsize(WAV) if os.path.exists(WAV) else 0
@@ -193,22 +213,32 @@ def main():
     ok = wait_log(r"video: play (\S+) from 0.0 s \(duration (\d+) s\)", 20, m)
     dur = int(ok.group(2)) if ok else 600
     time.sleep(20); shot("video_playing_20s")
-    st = wait_log(r"video: ([\d.]+) fps shown, (\d+) dropped", 15, m)
-    check("8a plays 20 s", st, f"{st.group(1)} fps shown, {st.group(2)} dropped" if st else "")
+    # The player logs one decimal place, including 0.0 during an empty window.
+    st = wait_log(r"video: ([1-9]\d*\.\d|0\.[1-9]) fps shown, (\d+) dropped", 15, m)
+    check("8a plays 20 s", st, f"{st.group(1)} fps shown, {st.group(2)} dropped" if st
+          else "no frames shown before seek")
     m = mark()
-    phone.tapL(16 + 358 * 60 / max(dur, 61), 286); time.sleep(5); shot("video_seek_1min")
+    phone.tapL(16 + 358 * 60 / max(dur, 61), 286); time.sleep(5); seek_shot = shot("video_seek_1min")
     ok = wait_log(r"video: play \S+ from ([\d.]+) s", 5, m)
     check("8b seek to 1:00", ok and 55 <= float(ok.group(1)) <= 65, ok.group(1) + " s" if ok else "")
-    m = mark()
-    phone.tapL(338, 511); time.sleep(0.25); shot("video_fullscreen_rotating"); time.sleep(1.5)
-    a = shot("video_fullscreen_a"); time.sleep(0.5); b = shot("video_fullscreen_b")
-    d = png.diff(a, b)
-    check("8c fullscreen + moving video", wait_log(r"video: fullscreen", 3, m) and d > 0.002, f"{d:.3f} of pixels differ between frames")
+    button = fullscreen_button(seek_shot)
+    entered_fullscreen = False
+    if button is None:
+        check("8c fullscreen + moving video", False, "player controls slab not found")
+    else:
+        m = mark()
+        phone.tap(*button); time.sleep(0.25); shot("video_fullscreen_rotating"); time.sleep(1.5)
+        a = shot("video_fullscreen_a"); time.sleep(0.5); b = shot("video_fullscreen_b")
+        d = png.diff(a, b)
+        entered_fullscreen = bool(wait_log(r"video: fullscreen", 3, m))
+        check("8c fullscreen + moving video", entered_fullscreen and d > 0.002,
+              f"button at y={button[1] / P(1):.0f} pt, {d:.3f} of pixels differ between frames")
     time.sleep(1)
     out = subprocess.run([sys.executable, os.path.join(HERE, "wavcheck.py"), WAV], capture_output=True, text=True).stdout
     grew = (os.path.getsize(WAV) if os.path.exists(WAV) else 0) - wav0
     check("8d audio device got samples", "NONSILENT" in out and grew > 48000 * 4 * 10, f"{grew // (48000 * 4)} s of audio captured during playback")
-    phone.key("f"); time.sleep(1.5)   # 'f' toggles fullscreen off again
+    if entered_fullscreen:
+        phone.key("f"); time.sleep(1.5)   # 'f' toggles fullscreen off again
     # 9. control center + Wi-Fi ---------------------------------------------------------------------------------
     m = mark()
     phone.cc_open(); shot("control_center_now_playing")

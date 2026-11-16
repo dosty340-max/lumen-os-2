@@ -1,36 +1,58 @@
 #!/bin/sh
 # Runs inside the lumen-toolchain container.
 #   /src   = repo (bind mount)      /kbuild = persistent docker volume (fast disk)
-# Produces /src/build/Image and /src/build/initramfs.cpio
+# qemu: Image + initramfs; s8-dreamlte: static userspace + fonts only.
 set -eu
+PROFILE=${1:-qemu}
+[ "$(uname -m)" = aarch64 ] && [ "$(gcc -dumpmachine | cut -d- -f1)" = aarch64 ] ||
+  { echo "[build] ARM64 toolchain required" >&2; exit 1; }
 KVER=6.12.113
 K=/kbuild/linux-$KVER
 OUT=/src/build
 GEN=/kbuild/gen
 JOBS=$(nproc)
+case "$PROFILE" in
+  qemu)
+    OBJ=/kbuild/obj
+    BACKEND=drm
+    FLAGS="-idirafter $K/usr/include"
+    ;;
+  s8-dreamlte)
+    OUT=$OUT/s8-dreamlte
+    OBJ=/kbuild/obj-s8-dreamlte
+    BACKEND=fbdev
+    FLAGS=-DLUMEN_DREAMLTE
+    ;;
+  *) echo "[build] unknown profile: $PROFILE" >&2; exit 2 ;;
+esac
+# Both profiles share the generated assets and BearSSL cache.
+exec 9>/kbuild/.build.lock
+flock -x 9
 mkdir -p "$OUT" "$GEN"
 
 # ---- kernel -------------------------------------------------------------
-if [ ! -d "$K" ]; then
-  echo "[build] downloading linux-$KVER"
-  curl -sSfL "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KVER.tar.xz" | tar xJ -C /kbuild
+if [ "$PROFILE" = qemu ]; then
+  if [ ! -d "$K" ]; then
+    echo "[build] downloading linux-$KVER"
+    curl -sSfL "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KVER.tar.xz" | tar xJ -C /kbuild
+  fi
+  FRAG_SUM=$(md5sum /src/kernel/lumen.config | cut -d' ' -f1)
+  if [ "$(cat $K/.lumen-frag 2>/dev/null)" != "$FRAG_SUM" ]; then
+    echo "[build] configuring kernel"
+    make -C "$K" ARCH=arm64 allnoconfig >/dev/null
+    (cd "$K" && ARCH=arm64 scripts/kconfig/merge_config.sh -m .config /src/kernel/lumen.config >/dev/null)
+    make -C "$K" ARCH=arm64 olddefconfig >/dev/null
+    # report fragment options that did not stick
+    grep -E '^CONFIG_.*=y' /src/kernel/lumen.config | while read -r l; do
+      grep -qx "$l" "$K/.config" || echo "[build] WARNING: $l not set"
+    done
+    echo "$FRAG_SUM" > "$K/.lumen-frag"
+  fi
+  make -C "$K" ARCH=arm64 -j"$JOBS" Image >/kbuild/kernel-build.log 2>&1 || { tail -40 /kbuild/kernel-build.log; exit 1; }
+  cp "$K/arch/arm64/boot/Image" "$OUT/Image"
+  # kernel UAPI headers (drm, input, sound, netlink) straight from this kernel
+  [ -f "$K/usr/include/drm/drm.h" ] || make -C "$K" ARCH=arm64 headers >/dev/null
 fi
-FRAG_SUM=$(md5sum /src/kernel/lumen.config | cut -d' ' -f1)
-if [ "$(cat $K/.lumen-frag 2>/dev/null)" != "$FRAG_SUM" ]; then
-  echo "[build] configuring kernel"
-  make -C "$K" ARCH=arm64 allnoconfig >/dev/null
-  (cd "$K" && ARCH=arm64 scripts/kconfig/merge_config.sh -m .config /src/kernel/lumen.config >/dev/null)
-  make -C "$K" ARCH=arm64 olddefconfig >/dev/null
-  # report fragment options that did not stick
-  grep -E '^CONFIG_.*=y' /src/kernel/lumen.config | while read -r l; do
-    grep -qx "$l" "$K/.config" || echo "[build] WARNING: $l not set"
-  done
-  echo "$FRAG_SUM" > "$K/.lumen-frag"
-fi
-make -C "$K" ARCH=arm64 -j"$JOBS" Image >/kbuild/kernel-build.log 2>&1 || { tail -40 /kbuild/kernel-build.log; exit 1; }
-cp "$K/arch/arm64/boot/Image" "$OUT/Image"
-# kernel UAPI headers (drm, input, sound, netlink) straight from this kernel
-[ -f "$K/usr/include/drm/drm.h" ] || make -C "$K" ARCH=arm64 headers >/dev/null
 
 # ---- BearSSL (the one TLS library) --------------------------------------
 if [ ! -f /kbuild/bearssl/build/libbearssl.a ]; then
@@ -60,26 +82,46 @@ fi
 
 # ---- userland: one static binary ----------------------------------------
 echo "[build] compiling lumen"
-mkdir -p /kbuild/obj
-CFLAGS="-O2 -g0 -std=gnu11 -Wall -Wno-unused-function -Wno-misleading-indentation -idirafter /kbuild/linux-$KVER/usr/include -I/src/src -I/src/third_party -I/kbuild/bearssl/inc -I$GEN -pthread"
+mkdir -p "$OBJ"
+CFLAGS="-O2 -g0 -std=gnu11 -Wall -Wno-unused-function -Wno-misleading-indentation $FLAGS -I/src/src -I/src/third_party -I/kbuild/bearssl/inc -I$GEN -pthread"
 OBJS=""
-for f in $(cd /src/src && find . -name '*.c' | sort) ; do
-  o=/kbuild/obj/$(echo "$f" | sed 's|^\./||; s|/|_|g; s|\.c$|.o|')
+PIDS=""
+running=0
+wait_batch() {
+  failed=0
+  for pid in $PIDS; do wait "$pid" || failed=1; done
+  [ "$failed" = 0 ] || { echo "[build] compile failed" >&2; exit 1; }
+  PIDS=""
+  running=0
+}
+for f in $(cd /src/src && find . -name '*.c' | sort); do
+  case "$f" in
+    ./drm.c|./fbdev.c) [ "$f" = "./$BACKEND.c" ] || continue ;;
+  esac
+  o=$OBJ/$(echo "$f" | sed 's|^\./||; s|/|_|g; s|\.c$|.o|')
   if [ ! -f "$o" ] || [ "/src/src/$f" -nt "$o" ] || [ -n "$(find /src/src -name '*.h' -newer "$o" | head -1)" ]; then
     echo "  cc $f"
-    gcc $CFLAGS -c "/src/src/$f" -o "$o" &
+    (gcc $CFLAGS -c "/src/src/$f" -o "$o.tmp" && mv "$o.tmp" "$o") &
+    PIDS="$PIDS $!"
+    running=$((running + 1))
+    if [ "$running" -ge "$JOBS" ]; then wait_batch; fi
   fi
   OBJS="$OBJS $o"
-  # cap parallelism
-  while [ "$(jobs -p | wc -l)" -ge "$JOBS" ]; do sleep 0.05; done
 done
-wait
-for o in $OBJS; do [ -f "$o" ] || { echo "compile failed"; exit 1; }; done
-if [ ! -f /kbuild/obj/ta.o ] || [ "$GEN/ta.c" -nt /kbuild/obj/ta.o ]; then
-  gcc -O2 -I/kbuild/bearssl/inc -c "$GEN/ta.c" -o /kbuild/obj/ta.o
+wait_batch
+if [ ! -f "$OBJ/ta.o" ] || [ "$GEN/ta.c" -nt "$OBJ/ta.o" ]; then
+  gcc -O2 -I/kbuild/bearssl/inc -c "$GEN/ta.c" -o "$OBJ/ta.o"
 fi
-gcc -static -pthread -o /kbuild/lumen $OBJS /kbuild/obj/ta.o /kbuild/bearssl/build/libbearssl.a -lm
-strip /kbuild/lumen
+gcc -static -pthread -o "$OBJ/lumen" $OBJS "$OBJ/ta.o" /kbuild/bearssl/build/libbearssl.a -lm
+strip "$OBJ/lumen"
+
+if [ "$PROFILE" = s8-dreamlte ]; then
+  mkdir -p "$OUT/fonts"
+  cp "$OBJ/lumen" "$OUT/lumen"
+  cp "$GEN/fonts/"*.ttf "$OUT/fonts/"
+  echo "[build] done: $OUT/lumen and fonts (ARM64 userspace)"
+  exit 0
+fi
 
 # ---- initramfs ------------------------------------------------------------
 [ -x /kbuild/gen_init_cpio ] || gcc -O2 -o /kbuild/gen_init_cpio "$K/usr/gen_init_cpio.c"
@@ -90,7 +132,7 @@ dir /proc 0755 0 0
 dir /sys 0755 0 0
 dir /tmp 1777 0 0
 dir /fonts 0755 0 0
-file /init /kbuild/lumen 0755 0 0
+file /init $OBJ/lumen 0755 0 0
 file /fonts/B400.ttf $GEN/fonts/B400.ttf 0644 0 0
 file /fonts/B600.ttf $GEN/fonts/B600.ttf 0644 0 0
 file /fonts/B800.ttf $GEN/fonts/B800.ttf 0644 0 0
