@@ -112,6 +112,9 @@ def jpeg_frames(f):
 
 
 class Handler(BaseHTTPRequestHandler):
+    search = staticmethod(search)
+    thumb = staticmethod(thumb)
+
     def log_message(self, fmt, *args):
         log(self.address_string(), fmt % args)
 
@@ -129,9 +132,9 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/health":
                 self.send(200, b'{"ok":true}')
             elif u.path == "/search":
-                self.send(200, json.dumps(search(q.get("q", ""))).encode())
+                self.send(200, json.dumps(self.search(q.get("q", ""))).encode())
             elif u.path == "/thumb":
-                self.send(200, thumb(q["id"]), "image/jpeg")
+                self.send(200, self.thumb(q["id"]), "image/jpeg")
             elif u.path == "/stream":
                 self.stream(q["id"], float(q.get("t", 0)), int(q.get("h", 360)))
             else:
@@ -145,10 +148,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-    def stream(self, vid, t, h):
+    def stream_inputs(self, vid, t, h):
         urls = stream_urls(vid, h)
-        vr, vw = os.pipe()
-        ar, aw = os.pipe()
         inputs = []
         for url in urls:
             # read ~real time after a 15 s burst so ffmpeg never idles long enough for YouTube
@@ -157,7 +158,12 @@ class Handler(BaseHTTPRequestHandler):
                        "-reconnect_delay_max", "5", "-rw_timeout", "15000000",
                        "-readrate", "1.1", "-readrate_initial_burst", "15", "-readrate_catchup", "2",
                        "-ss", f"{t:.3f}", "-i", url]
-        amap = "1:a:0" if len(urls) > 1 else "0:a:0?"
+        return inputs, "1:a:0" if len(urls) > 1 else "0:a:0?"
+
+    def stream(self, vid, t, h):
+        inputs, amap = self.stream_inputs(vid, t, h)
+        vr, vw = os.pipe()
+        ar, aw = os.pipe()
         vf = f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2,fps={FPS}"
         cmd = [FFMPEG, "-loglevel", "error", "-nostdin", *inputs,
                "-map", "0:v:0", "-vf", vf, "-c:v", "mjpeg", "-q:v", "5", "-pix_fmt", "yuvj420p", "-f", "mjpeg", f"pipe:{vw}",
@@ -165,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
         proc = subprocess.Popen(cmd, pass_fds=(vw, aw))
         os.close(vw)
         os.close(aw)
-        log(f"stream {vid} from {t:.1f}s ({len(urls)} source{'s' * (len(urls) > 1)})")
+        log(f"stream {vid} from {t:.1f}s")
         self.send_response(200)
         self.send_header("Content-Type", "application/x-lumen-stream")
         self.end_headers()

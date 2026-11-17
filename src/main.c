@@ -1,5 +1,6 @@
 // PID 1 + the UI main loop.
 #include "ui.h"
+#include "display.h"
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/mount.h>
@@ -45,11 +46,15 @@ void shell_frame(Canvas *c, float dt);
 int main(void) {
     if (getpid() == 1) pid1();
     signal(SIGPIPE, SIG_IGN);
-    Canvas *scr = drm_init();
+    Canvas *scr = display_backend.init();
     if (!scr) { LOG("ui: no display"); sleep(5); return 1; }
     font_init();
     input_init();
-    store_init();
+#ifdef LUMEN_DREAMLTE
+    store_init(false);
+#else
+    store_init(true);
+#endif
     settings_load();
     audio_init();
     net_init();
@@ -71,7 +76,7 @@ int main(void) {
         double work = now() - t;
         if (work > worst) worst = work;
         double tf = now();
-        scr = drm_flip();
+        scr = display_backend.present();
         flipw += now() - tf;
         frames++;
         if (t - stat_t >= 10) {   // frame-time log for the perf report

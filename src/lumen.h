@@ -89,10 +89,7 @@ char *text_ellipsize(int f, float px, const char *s, float maxw);
 int text_wrap(int f, float px, const char *s, float maxw, int *st, int *ln, int max);
 
 // ---- display & input --------------------------------------------------------
-Canvas *drm_init(void);
-Canvas *drm_flip(void);
-
-enum { T_DOWN = 1, T_MOVE, T_UP, T_KEY };
+enum { T_DOWN = 1, T_MOVE, T_UP, T_KEY, T_CANCEL };
 enum { K_BACKSPACE = 8, K_ENTER = 10, K_ESC = 27, K_LEFT = 0x110000, K_RIGHT, K_UP, K_DOWN, K_TAB };
 typedef struct { int type; float x, y; int key; } InputEv;   // key: codepoint or K_*
 void input_init(void);

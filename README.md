@@ -129,7 +129,7 @@ Connect a VNC viewer to `localhost:5901`. The mouse is your finger. The first ru
 | `LUMEN_DATA=path.img` | use another data disk (notes, settings, history) |
 | `LUMEN_AUDIO=wav,id=snd0,path=out.wav` | capture audio to a file instead of playing it |
 | `LUMEN_NO_BRIDGE=1` | start without the YouTube bridge |
-| `test/e2e.py` | boots the phone headless and drives the whole flow through QMP (32 checks) |
+| `test/e2e.py` | boots QEMU headless and runs 32 checks through QMP, with a local FFmpeg-generated video and audio fixture |
 | `test/soak.py` | 5-minute video playback soak test |
 | `test/inflate_check.sh` | checks the inflate implementation against zlib |
 

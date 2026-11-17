@@ -473,7 +473,7 @@ static void home_event(InputEv *e) {
     if (r == G_DRAG_END && drag_tab >= 0) {
         float dir = drawer_target(drag_tab, drag_to) - drawer_target(drag_tab, open_drawer);
         bool fling = (dir < 0 && g.vy < -P(500)) || (dir > 0 && g.vy > P(500));
-        if (drag_p > 0.3f || fling) set_drawer(drag_to);
+        if (e->type != T_CANCEL && (drag_p > 0.3f || fling)) set_drawer(drag_to);
         else set_drawer(open_drawer);
         for (int i = 0; i < NDRAWER; i++) dtop[i].v = g.vy * 0.3f;
         drag_tab = -1;
@@ -510,7 +510,7 @@ static bool cc_event(InputEv *e) {
         }
         if (r == G_DRAG_END || r == G_TAP) {
             bool open = cc_drag == 1 ? (cc.x > 0.3f || cg.vy > P(600)) && cg.vy > -P(300) : !(cc.x < 0.75f || cg.vy < -P(500));
-            cc.t = open ? 1 : 0;
+            cc.t = (e->type == T_CANCEL ? cc_drag == 2 : open) ? 1 : 0;
             cc.v = cg.vy / fmaxf(cc_h, P(400));
             cc_drag = 0;
         }
@@ -549,7 +549,7 @@ void shell_event(InputEv *e) {
             int r = gest(&hg, e);
             if (r == G_DRAG || r == G_DRAG_START) hg_p = clampf((hg.y0 - hg.y) / P(520), 0, 1);
             if (r == G_DRAG_END || r == G_TAP) {
-                if (hg_p > 0.16f || hg.vy < -P(700)) close_app();
+                if (e->type != T_CANCEL && (hg_p > 0.16f || hg.vy < -P(700))) close_app();
                 else { from = cur_rect; to = full_rect(); app_u = (Spring){ 0, 0, 1 }; app_phase = AP_RETURN; }
             }
             return;

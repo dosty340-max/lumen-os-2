@@ -86,6 +86,15 @@ int gest(Gest *g, InputEv *e) {
         }
         return g->drag ? G_DRAG : G_NONE;
     }
+    if (e->type == T_CANCEL) {
+        // Let handlers release drag state without interpreting a lost press as a tap.
+        g->down = 0;
+        g->x = g->x0;
+        g->y = g->y0;
+        g->vx = g->vy = 0;
+        press_id = 0;
+        return G_DRAG_END;
+    }
     if (e->type == T_UP) {
         g->down = 0;
         press_id = 0;
