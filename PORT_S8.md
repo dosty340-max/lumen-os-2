@@ -45,7 +45,7 @@ Le dernier passage complet sur `s8-dreamlte` a réussi **32 contrôles sur 32 en
 
 ## Démarrage dreamlte hors téléphone
 
-Le firmware de référence déclaré est `G950FXXUCDZE7` pour le SM-G950F. Le dépôt ne contient actuellement ni image de démarrage d’origine pour cette version, ni ses DTB, ni un arbre source Samsung dont la correspondance avec ce firmware a été vérifiée. Le catalogue Samsung Open Source a répondu HTTP 403 depuis l’hôte lors du relevé. L’identifiant exact de l’archive source reste à confirmer.
+Le firmware de référence déclaré est `G950FXXUCDZE7` pour le SM-G950F. L’image stock et ses DTB ont été analysés hors ligne à partir d’une archive SamFW SFR. Les fichiers binaires restent hors du dépôt. L’arbre source Samsung correspondant reste à identifier. Le catalogue Samsung Open Source a répondu HTTP 403 depuis l’hôte lors du relevé. L’identifiant exact de l’archive source reste à confirmer.
 
 Android 9 décrit la version 1 de l’en-tête de démarrage pour les appareils lancés avec cette version d’Android. La version d’Android installée sur ce Galaxy S8 ne suffit donc pas à identifier le format de son image. Il faut relever l’en-tête, la disposition des sections et le format des DTB à partir du fichier d’origine. [En-têtes Android](https://source.android.com/docs/core/architecture/bootloader/boot-image-header) · [Images DTB](https://source.android.com/docs/core/architecture/bootloader/dtb-images)
 
@@ -55,6 +55,24 @@ Android 9 décrit la version 1 de l’en-tête de démarrage pour les appareils 
 4. Préparer sur l’hôte l’arborescence du futur ramdisk et vérifier son manifeste. Lumen attend un `/init` exécutable si lancé en PID 1, les polices sous `/fonts`, ainsi que les points de montage `/proc`, `/sys`, `/dev` et `/tmp`. Comparer ces attentes avec le ramdisk stock et la configuration de son noyau. Le build du profil dreamlte fournit déjà l’ELF et les polices pour cette comparaison.
 
 Les résultats attendus de cette phase sont un inventaire stock et une compilation reproductible, avec les hypothèses de format levées par inspection des fichiers. Le démarrage sur la dalle réelle et l’acceptation d’un chargement par le bootloader verrouillé restent des validations distinctes. Cette phase s’effectue exclusivement sur des fichiers de l’hôte.
+
+### Relevé de l’image stock G950FXXUCDZE7
+
+Samsung confirme la publication pour le SM-G950F sous Android 9. La copie locale correspond au paquet SamFW **SFR**, avec le CSC `G950FOXJCDUD3`. Son paquet AP est nommé `AP_G950FXXUCDZE7_CL21427293_QB110044235_REV00_user_low_ship_meta_OS9.tar.md5`. Le catalogue XEF donne le même nom AP, avec un CSC différent. L’identité binaire entre les deux paquets AP n’a pas été vérifiée. [Publication Samsung](https://doc.samsungmobile.com/SM-G950F/000014170428/eng.html) · [SamFW SFR](https://samfw.com/firmware/SM-G950F/SFR/G950FXXUCDZE7) · [SamFW XEF](https://samfw.com/firmware/SM-G950F/XEF/G950FXXUCDZE7)
+
+- Le MD5 du ZIP correspond à celui publié par SamFW, `405abb1af4abbe11e890b61ebe683de9`. Le SHA-256 calculé est `f02b4b0922f80a1f02e47fe3ce47c3ab08334ef6abc2d02f1442cd97838435de`. Le contenu TAR de l’AP correspond à son MD5 de fin d’archive, `62753b847e84356b4025fbc1919c4b3d`. Ces contrôles établissent l’intégrité par rapport aux sommes disponibles. La signature OEM n’a pas été vérifiée.
+- L’image décompressée fait **37 351 712 octets**. Son SHA-256 est `63f322d6fb7eadc4eda0fb54b2dbdf7a941719518656536d5b5703bbb30dbb2e`. Le conteneur commence par `ANDROID!`, avec un en-tête de disposition Samsung historique, des pages de **2 048 octets** et un champ de taille DT de 1 142 784 octets à l’offset 40. La ligne de commande dans l’en-tête est vide. Le champ tags vaut `0x10000100`.
+
+| Section | Offset dans boot.img | Taille | Format ou adresse |
+| --- | ---: | ---: | --- |
+| Noyau | 2 048 | 31 167 792 | Image Linux ARM64 brute, `0x10008000` |
+| Ramdisk | 31 170 560 | 5 037 560 | CPIO gzip, `0x11000000` |
+| Device trees | 36 208 640 | 1 142 784 | Table Samsung `DTBH` version 2 |
+| Données finales | 37 351 424 | 288 | Commencent par `SEANDROIDENFORCE` |
+
+- Les cinq DTB ont tous été lus avec `fdtget` et décompilés avec `dtc`. Ils identifient des cartes DREAMLTE EUR sous Exynos 8895, pour les révisions 01, 02, 03, 04/05 et 06. La révision de l’appareil et le critère de sélection du bootloader restent à établir.
+- Le noyau embarqué s’identifie comme `4.4.111-21427293`, construit avec GCC 4.9.x. Sa configuration embarquée a été extraite. Elle confirme notamment `CONFIG_BLK_DEV_INITRD=y`, `CONFIG_RD_GZIP=y`, `CONFIG_DEVTMPFS=y`, `CONFIG_INPUT_EVDEV=y`, `CONFIG_FB=y`, `CONFIG_EXYNOS_DECON_FB=y` et `CONFIG_TOUCHSCREEN_SEC_TS=y`. Ces options renseignent sur le noyau stock. Les permissions des nœuds et le comportement réel des pilotes restent à valider.
+- L’intégrité gzip du ramdisk et la lecture de son CPIO sont confirmées. Son manifeste contient l’`init` Android, `fstab.samsungexynos8895`, `dev`, `proc` et `sys`. Les répertoires racine `fonts` et `tmp` devront figurer dans un ramdisk Lumen. Aucun fichier de démarrage modifié n’a été produit.
 
 ## Blocages matériels
 
