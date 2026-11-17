@@ -45,7 +45,7 @@ Le dernier passage complet sur `s8-dreamlte` a réussi **32 contrôles sur 32 en
 
 ## Démarrage dreamlte hors téléphone
 
-Le firmware de référence déclaré est `G950FXXUCDZE7` pour le SM-G950F. L’image stock et ses DTB ont été analysés hors ligne à partir d’une archive SamFW SFR. Les fichiers binaires restent hors du dépôt. L’arbre source Samsung correspondant reste à identifier. Le catalogue Samsung Open Source a répondu HTTP 403 depuis l’hôte lors du relevé. L’identifiant exact de l’archive source reste à confirmer.
+Le firmware de référence déclaré est `G950FXXUCDZE7` pour le SM-G950F. L’image stock et ses DTB ont été analysés hors ligne à partir d’une archive SamFW SFR. Les fichiers binaires restent hors du dépôt. L’archive Samsung exacte de DZE7 reste à confirmer. L’essai ci-dessous utilise un miroir des sources DUD1, dont le firmware porte le même identifiant de noyau.
 
 Android 9 décrit la version 1 de l’en-tête de démarrage pour les appareils lancés avec cette version d’Android. La version d’Android installée sur ce Galaxy S8 ne suffit donc pas à identifier le format de son image. Il faut relever l’en-tête, la disposition des sections et le format des DTB à partir du fichier d’origine. [En-têtes Android](https://source.android.com/docs/core/architecture/bootloader/boot-image-header) · [Images DTB](https://source.android.com/docs/core/architecture/bootloader/dtb-images)
 
@@ -73,6 +73,50 @@ Samsung confirme la publication pour le SM-G950F sous Android 9. La copie locale
 - Les cinq DTB ont tous été lus avec `fdtget` et décompilés avec `dtc`. Ils identifient des cartes DREAMLTE EUR sous Exynos 8895, pour les révisions 01, 02, 03, 04/05 et 06. La révision de l’appareil et le critère de sélection du bootloader restent à établir.
 - Le noyau embarqué s’identifie comme `4.4.111-21427293`, construit avec GCC 4.9.x. Sa configuration embarquée a été extraite. Elle confirme notamment `CONFIG_BLK_DEV_INITRD=y`, `CONFIG_RD_GZIP=y`, `CONFIG_DEVTMPFS=y`, `CONFIG_INPUT_EVDEV=y`, `CONFIG_FB=y`, `CONFIG_EXYNOS_DECON_FB=y` et `CONFIG_TOUCHSCREEN_SEC_TS=y`. Ces options renseignent sur le noyau stock. Les permissions des nœuds et le comportement réel des pilotes restent à valider.
 - L’intégrité gzip du ramdisk et la lecture de son CPIO sont confirmées. Son manifeste contient l’`init` Android, `fstab.samsungexynos8895`, `dev`, `proc` et `sys`. Les répertoires racine `fonts` et `tmp` devront figurer dans un ramdisk Lumen. Aucun fichier de démarrage modifié n’a été produit.
+
+### Essai de compilation du noyau et des DTB
+
+Le catalogue Samsung Open Source a répondu HTTP 403 aux recherches `SM-G950F` et `G950FXXUCDZE7`. L’archive officielle exacte de DZE7 reste à identifier. L’essai utilise le miroir Exynos8895 au commit `654e8e3ad15988b6114c190f7568df9a7272fbc9`. Ce commit importe les sources du Galaxy S8 `G950FXXUCDUD1`, du S8+ `G955FXXUCDUD1` et du Note 8 `N950FXXSGDUG7`. Le firmware G950F DUD1 est répertorié avec la même version noyau `4.4.111-21427293`. Le Makefile du miroir indique `4.4.111`. Ces éléments justifient l’essai sur DUD1, tandis que l’identité des sources DZE7 reste à établir. [Catalogue Samsung](https://opensource.samsung.com/uploadSearch?searchValue=SM-G950F) · [Import DUD1](https://github.com/exynos8895/android_kernel_samsung_universal8895/commit/654e8e3ad15988b6114c190f7568df9a7272fbc9) · [Relevé du firmware DUD1](https://samfrew.com/download/Galaxy__S8__/f8cO/VDH/G950FXXUCDUD1/G950FOVFCDUD3)
+
+La configuration de départ a été vérifiée par une nouvelle extraction du bloc gzip `IKCFG_ST` du noyau de `boot.img`. Son SHA-256 est `a6fdd036aea9da181db61a252283f24a90aa8da72d4af48ddaccdc8440efc19c`. Le build ARM64 a utilisé Ubuntu 20.04 Linux amd64 sous Docker et le GCC CFP/JOPP `4.9.x 20150123 (prerelease)` du miroir Neternels au commit `5eb1b4159bc466602e7634b1f7a4f471f4c027e2`. La chaîne a le même identifiant de version que celle annoncée par le noyau stock. Son identité binaire reste inconnue. [Miroir de la chaîne CFP](https://github.com/Neternels/exynos8895_kernel/tree/5eb1b4159bc466602e7634b1f7a4f471f4c027e2/toolchain/gcc-cfp/gcc-cfp-jopp-only/aarch64-linux-android-4.9)
+
+Le premier essai a compilé les cinq DTB. La cible `Image` a échoué au lien du vDSO avec `-fuse-linker-plugin, but liblto_plugin.so not found`. La chaîne contient `liblto_plugin.so.0.0.0` mais omet le lien `liblto_plugin.so`. Le second essai a rétabli ce lien dans la chaîne locale et déclaré `PLATFORM_VERSION=9` avec `CONFIG_SHELL=/bin/bash` pour les scripts Samsung.
+
+Le deuxième essai a passé cette étape, puis s’est arrêté sur `init/_vmm.S` avec `file not found: init/vmm.6g.elf`. `CONFIG_RKP=y` et `CONFIG_RKP_6G=y` sélectionnent ce binaire par `.incbin`. Le miroir ne le contient pas. L’essai suivant a réutilisé l’ELF ARM64 exécutable incorporé au noyau stock. Il commence à `0x13f9db8` dans la section noyau, soit `0x13fa5b8` dans `boot.img`. La fin de sa table de sections donne une longueur de 255 176 octets, avec tous les segments contenus dans cette plage. Son SHA-256 est `396b39367dc6a13741771dc92b372c8bcff764978e12c000d1f497c6a30b1d24`. Il est fourni localement à l’assembleur dans le répertoire de sortie.
+
+Depuis la racine des sources dans le conteneur, avec `CROSS` pointant vers le préfixe absolu `aarch64-linux-android-` et `STOCK_CONFIG` vers la configuration extraite, les cibles ont été lancées ainsi. Le script `diffconfig`, le wrapper GCC et l’instrumentation CFP utilisent Python 2.7 dans ce conteneur. La variable `VMM_ELF` désigne le binaire extrait de la copie stock.
+
+```bash
+mkdir -p /build
+cp "$STOCK_CONFIG" /build/.config
+args=(O=/build ARCH=arm64 PLATFORM_VERSION=9 CONFIG_SHELL=/bin/bash CROSS_COMPILE="$CROSS")
+make "${args[@]}" olddefconfig
+scripts/diffconfig "$STOCK_CONFIG" /build/.config
+make "${args[@]}" -j4 exynos/exynos8895-dreamlte_eur_open_{05,07,08,09,10}.dtb
+mkdir -p /build/init
+cp "$VMM_ELF" /build/init/vmm.6g.elf
+make "${args[@]}" -j4 Image
+```
+
+`olddefconfig` a désactivé `TRACING_SUPPORT` et retiré les symboles associés, ainsi que `RBIN`, `ION_RBIN_HEAP` et les réglages de prélecture du hachage dm-verity absents de cet arbre. Aucune option de sécurité n’a été modifiée manuellement. `RKP`, `RKP_CFP` et `RKP_CFP_JOPP` sont restés activés dans la config effective.
+
+#### Comparaison des DTB
+
+Les cinq cibles DTB ont réussi lors des deux essais. Les binaires produits par les deux essais ont les mêmes empreintes. Pour chaque révision, `fdtget` renvoie les mêmes propriétés racine `model` et `compatible` que le DTB stock. Les cinq DTB compilés contiennent en plus le sous-arbre `/firmware/android/fstab` avec les entrées `SYSTEM` et `EFS`. Après suppression de `/firmware` sur des copies de comparaison uniquement, les sorties triées de `dtc -s -I dtb -O dts` sont identiques aux sorties stock pour les cinq paires.
+
+| Révision DREAMLTE EUR | Suffixe de la cible DTB | Taille en octets | SHA-256 compilé |
+| --- | --- | ---: | --- |
+| 01 | `05` | 226 567 | `83702bf29d1a9eb265a6015e0d369a8014235b2ed6956b790c487dbcde5b4672` |
+| 02 | `07` | 227 723 | `66d29788b1470b0baddabd85eda9bb45a04bba17a256337cdb1c5977fdfedc87` |
+| 03 | `08` | 227 620 | `d18fd629fec3f94889341144987a936ce95a91f3b76f0e845cc90605dcf4eca5` |
+| 04/05 | `09` | 228 893 | `c4605b04d9b886553e7b3b12283c58ef8bb0f62af867b5feae14633e0f28731c` |
+| 06 | `10` | 228 809 | `fc90a66e2eab157709cc69a60d5522eb669d87ce28a8ff6724666bd7af8a87d1` |
+
+#### Résultat de la cible Image
+
+Avec le VMM fourni, `init/_vmm.o` s’est assemblé. La compilation a ensuite échoué avant l’édition des liens de `vmlinux`. GCC a signalé une erreur interne dans `cc1` sur `fs/dcache.o`. D’autres unités, dont `kernel/exec_domain.o` et `mm/mremap.o`, se sont arrêtées avec le signal 11 et le code 139. Le fichier core de l’échec sur `mm/mremap.o` est celui du processus AArch64 `/usr/bin/qemu-x86_64` qui exécute la chaîne x86_64. Le journal ne permet pas d’attribuer tous les plantages à une cause unique. Le code de sortie de `make Image` est 2. Aucun `vmlinux` ni `Image` n’a été obtenu. Un nouvel essai sous Linux x86_64 natif permettrait d’écarter la couche d’émulation avant d’évaluer les éventuels écarts de sources restants.
+
+Les binaires compilés, le firmware et l’ELF VMM sont restés dans l’espace de travail local. L’essai s’est limité à l’hôte.
 
 ## Blocages matériels
 
